@@ -6,4 +6,4 @@ gcc client.c -o client
 
 - Para compilar el servidor desde la ruta del servidor:
 
-gcc server.c -o server
+gcc server.c ServerUtils/utils.c -o server

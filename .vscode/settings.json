@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "unistd.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "utils.h": "c",
+        "pthread.h": "c",
+        "stdio.h": "c"
     }
 }

@@ -6,14 +6,16 @@
 #include <arpa/inet.h>
 #include <sys/stat.h>
 
-#define PORT 8080
+#include "./ServerUtils/utils.h"
+
+#define PORT 9000
 #define BUFFER_SIZE 1024
 
 
 /**
  * Algoritmo de descifrado XOR
  * 
- * Aplica una operación XOR a cada byte del dato con la clave proporcionadaS
+ * Aplica una operacion XOR a cada byte del dato con la clave proporcionadaS
  */
 void xor_decrypt(char *data, size_t len, char key) {
     for (size_t i = 0; i < len; i++) {
@@ -21,21 +23,20 @@ void xor_decrypt(char *data, size_t len, char key) {
     }
 }
 
+
 /**
  * Maneja los datos del cliente
  * 
  * Recibe un archivo cifrado, descifra su contenido usando XOR y guarda tanto el archivo cifrado como el descifrado en el servidor
  */
 void *handle_client(void *arg) {
+    
     int client_sock = *(int *)arg;
     free(arg);
 
-    // Aseguramos que el directorio de archivos del servidor existe
-    mkdir("ServerFiles", 0777); // Asegura que el directorio existe
-
     // Abrimos los archivos de salida
-    FILE *fp = fopen("ServerFiles/archivo_decifrado.txt", "wb"); // Descifrado
-    FILE *fp_enc = fopen("ServerFiles/archivo_cifrado.txt", "wb"); // Cifrado
+    FILE *fp = fopen("ServerFiles/Input_files/archivo_decifrado.txt", "wb"); // Descifrado
+    FILE *fp_enc = fopen("ServerFiles/Input_files/archivo_cifrado.txt", "wb"); // Cifrado
 
     // Verificamos que los archivos se abrieron correctamente
     if (!fp || !fp_enc) {
@@ -55,15 +56,6 @@ void *handle_client(void *arg) {
     // Recibir la clave del cliente
     ssize_t received = recv(client_sock, &key, sizeof(key), 0);
 
-    // Si el tamaño recibido es diferente a la clave, hubo un error
-    if (received != sizeof(key)) {
-        perror("Error recibiendo la clave");
-        fclose(fp);
-        fclose(fp_enc);
-        close(client_sock);
-        return NULL;
-    }
-
     ssize_t bytes; // Variable para almacenar el numero de bytes recibidos
 
     // Recibir el archivo cifrado mientras el tamaño de datos sea mayor que 0
@@ -71,14 +63,9 @@ void *handle_client(void *arg) {
 
         fwrite(buffer, 1, bytes, fp_enc); // Guarda el cifrado
 
-        xor_decrypt(buffer, bytes, key); // Descifra el contenido recibido
+        xor_decrypt(buffer, bytes, key); // Descifra
 
         fwrite(buffer, 1, bytes, fp); // Guarda el descifrado
-    }
-
-    // Si el numero de bytes es negativo, hubo un error en la recepción
-    if (bytes < 0) {
-        perror("Error recibiendo datos del cliente");
     }
 
     // Cerramos los archivos
@@ -88,8 +75,11 @@ void *handle_client(void *arg) {
 
     printf("Archivo recibido guardado.\n");
 
+    split_file("ServerFiles/Input_files/archivo_decifrado.txt"); // Segmenta el archivo descifrado
+
     return NULL;
 }
+
 
 /**
  * Servidor principal

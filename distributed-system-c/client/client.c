@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define PORT 8080
+#define PORT 9000
 #define BUFFER_SIZE 1024
 
 
@@ -19,10 +19,11 @@ void xor_encrypt(char *data, size_t len, char key) {
     }
 }
 
+
 /**
- * Función principal del cliente.
+ * Funcion principal del cliente
  * 
- * Crea un socket, se conecta al servidor, envía un archivo cifrado usando XOR
+ * Crea un socket, se conecta al servidor, envia un archivo cifrado usando XOR
  */
 int main() {
     int sock;
