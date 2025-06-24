@@ -4,97 +4,100 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define PORT 9000
 #define BUFFER_SIZE 1024
 
-
 /**
- * Algoritmo de cifrado XOR.
+ * Cifra los datos usando XOR con la clave proporcionada
  * 
- * Aplica una operación XOR a cada byte del dato con la clave proporcionada
+ * @param data Puntero al buffer de datos a cifrar
+ * @param len Longitud de los datos a cifrar
+ * @param key Clave de cifrado
  */
 void xor_encrypt(char *data, size_t len, char key) {
-    for (size_t i = 0; i < len; i++) {
-        data[i] ^= key;
+    for (size_t i = 0; i < len; i++)                                    // Para cada byte en los datos
+    {
+        data[i] ^= key;                                                 // Aplica la operacion XOR con la clave                   
     }
+}
+
+/**
+ * Envia un archivo al servidor cifrado usando XOR
+ * 
+ * @param sock Socket del cliente conectado al servidor
+ * @param filename Nombre del archivo a enviar
+ * @param key Clave de cifrado
+ */
+int send_file(int sock, const char *filename, char key) {
+    
+    // Abre el archivo en modo lectura binaria
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) {
+        perror("[-] No se pudo abrir el archivo");
+        return 1;
+    }
+
+    char buffer[BUFFER_SIZE];                                           // Buffer para almacenar los datos leidos del archivo
+    size_t bytes;
+
+    while ((bytes = fread(buffer, 1, BUFFER_SIZE, fp)) > 0)             // Miestras haya datos en el archivo
+    {
+
+        // Cifra el buffer usando XOR
+        xor_encrypt(buffer, bytes, key);                                // Llama a la funcion xor_encrypt para cifrar los datos
+
+        // Envia el buffer cifrado al servidor
+        send(sock, buffer, bytes, 0);                                   // Envia los datos cifrados al servidor en lotes de 1024 bytes                          
+    }
+    fclose(fp);
+    return 0;
 }
 
 
 /**
- * Funcion principal del cliente
- * 
- * Crea un socket, se conecta al servidor, envia un archivo cifrado usando XOR
+ * * Funcion principal del cliente que se conecta al servidor y envia un archivo cifrado.
  */
 int main() {
-    int sock;
-    struct sockaddr_in server_addr;
-    char buffer[BUFFER_SIZE];
 
-    // Creamos el socket
-    sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-        perror("Creacion del socket fallida");
-        return 1;
-    }
-
-    // Configuramos la direccion del servidor
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(PORT);
-    if (inet_pton(AF_INET, "127.0.0.1", &server_addr.sin_addr) <= 0) {
-        perror("Direccion IP invalida o no soportada");
-        close(sock);
-        return 1;
-    }
-
-    // Conectamos al servidor
-    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Conexion al servidor fallida");
-        close(sock);
-        return 1;
-    }
-
-    // Abrimos el archivo a enviar
-    FILE *fp = fopen("ClientFiles/el_quijote.txt", "rb");
-    if (!fp) {
-        perror("Error al abrir el archivo");
-        close(sock);
-        return 1;
-    }
-
-    // Definimos la clave para el cifrado XOR
+    // Configura el socket del cliente
+    const char *ip = "127.0.0.1";
+    int port = 9000;
     char key = 0x5A;
+    const char *filename = "ClientFiles/el_quijote.txt";
 
-    // Enviamos la clave al servidor
-    if (send(sock, &key, sizeof(key), 0) != sizeof(key)) {
-        perror("Error al enviar la clave");
-        fclose(fp);
+    // Se crea el socket de cliente
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        perror("[-] Creacion del socket fallida");
+        return 1;
+    }
+    printf("[+] Socket creado correctamente.\n");
+
+    // Configura direccion del servidor
+    struct sockaddr_in address;
+    memset(&address, 0, sizeof(address));
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+    address.sin_addr.s_addr = inet_addr(ip);
+
+    // Conecta al servidor
+    if (connect(sock, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("[-] Conexion fallida");
         close(sock);
         return 1;
     }
+    printf("[+] Conectado al servidor %s:%d\n", ip, port);
 
-    size_t bytes;
+    // Envia clave
+    send(sock, &key, sizeof(key), 0);
 
-    // Leemos el archivo y lo ciframos antes de enviarlo
-    while ((bytes = fread(buffer, 1, BUFFER_SIZE, fp)) > 0) {
-
-        // Ciframos el buffer con la clave
-        xor_encrypt(buffer, bytes, key);
-
-        // Enviamos el buffer cifrado al servidor
-        ssize_t sent = send(sock, buffer, bytes, 0);
-
-        // Si el tamaño enviado no coincide con el tamaño leído, hay un error
-        if (sent != bytes) {
-            perror("Error al enviar datos");
-            fclose(fp);
-            close(sock);
-            return 1;
-        }
-    }
-
-    // Cerramos el archivo
-    fclose(fp);
+    // Enviar archivo
+    if (send_file(sock, filename, key) == 0)
+        printf("[+] Archivo enviado correctamente.\n");
+        
     close(sock);
-    printf("Archivo enviado correctamente.\n");
     return 0;
 }
+
+// Nota: El codigo para el main toma como referencia los siguientes enlaces:
+//       https://www.youtube.com/watch?v=io2G2yW1Qk8
+//       https://idiotdeveloper.com/tcp-client-server-programming-c-guide/

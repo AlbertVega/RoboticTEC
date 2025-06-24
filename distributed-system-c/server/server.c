@@ -7,141 +7,98 @@
 #include <sys/stat.h>
 
 #include "./ServerUtils/utils.h"
+#include "./node_manager.h"
 
 #define PORT 9000
 #define BUFFER_SIZE 1024
 
 
 /**
- * Algoritmo de descifrado XOR
+ * Funcion para desencriptar el contenido del archivo usando XOR
  * 
- * Aplica una operacion XOR a cada byte del dato con la clave proporcionadaS
+ * @param arg Puntero a la estructura que contiene el socket del cliente
  */
-void xor_decrypt(char *data, size_t len, char key) {
-    for (size_t i = 0; i < len; i++) {
-        data[i] ^= key;
-    }
-}
-
-
-/**
- * Maneja los datos del cliente
- * 
- * Recibe un archivo cifrado, descifra su contenido usando XOR y guarda tanto el archivo cifrado como el descifrado en el servidor
- */
-void *handle_client(void *arg) {
+void *manage_flow(void *arg) {
     
-    int client_sock = *(int *)arg;
+    int new_socket = *(int *)arg;
     free(arg);
 
-    // Abrimos los archivos de salida
-    FILE *fp = fopen("ServerFiles/Input_files/archivo_decifrado.txt", "wb"); // Descifrado
-    FILE *fp_enc = fopen("ServerFiles/Input_files/archivo_cifrado.txt", "wb"); // Cifrado
-
-    // Verificamos que los archivos se abrieron correctamente
-    if (!fp || !fp_enc) {
-        perror("Error al abrir archivos de salida");
-        if (fp) fclose(fp);
-        if (fp_enc) fclose(fp_enc);
-        close(client_sock);
-        return NULL;
-    }
-
-    // Buffer para recibir datos
+    FILE *fp = fopen("ServerFiles/Input_files/archivo_decifrado.txt", "wb");
+    FILE *fp_enc = fopen("ServerFiles/Input_files/archivo_cifrado.txt", "wb");
     char buffer[BUFFER_SIZE];
-
-    // Clave para el decifrado XOR
     char key;
 
-    // Recibir la clave del cliente
-    ssize_t received = recv(client_sock, &key, sizeof(key), 0);
+    recv(new_socket, &key, sizeof(key), 0);                             // Recibe la clave de desencriptacion
 
-    ssize_t bytes; // Variable para almacenar el numero de bytes recibidos
-
-    // Recibir el archivo cifrado mientras el tamaño de datos sea mayor que 0
-    while ((bytes = recv(client_sock, buffer, BUFFER_SIZE, 0)) > 0) {
-
-        fwrite(buffer, 1, bytes, fp_enc); // Guarda el cifrado
-
-        xor_decrypt(buffer, bytes, key); // Descifra
-
-        fwrite(buffer, 1, bytes, fp); // Guarda el descifrado
+    ssize_t bytes;
+    while ((bytes = recv(new_socket, buffer, BUFFER_SIZE, 0)) > 0)      // Mientras haya datos en el buffer que recibir
+    {
+        fwrite(buffer, 1, bytes, fp_enc);                               // Guarda los datos cifrados en el archivo correspondiente
+        xor_decrypt(buffer, bytes, key);                                // Desencripta los datos recibidos usando XOR
+        fwrite(buffer, 1, bytes, fp);                                   // Guarda los datos desencriptados en el archivo correspondiente
     }
 
-    // Cerramos los archivos
     fclose(fp);
     fclose(fp_enc);
-    close(client_sock);
+    close(new_socket);
 
     printf("Archivo recibido guardado.\n");
 
-    split_file("ServerFiles/Input_files/archivo_decifrado.txt"); // Segmenta el archivo descifrado
+    split_file("ServerFiles/Input_files/archivo_decifrado.txt");        // Llama a la funcion para dividir el archivo en partes aproximadamente iguales
+
+    create_nodes();                                                     // Crea los nodos que se encargaran de procesar las partes del archivo
 
     return NULL;
 }
 
 
 /**
- * Servidor principal
+ * * Funcion principal del servidor que crea el socket, escucha conexiones entrantes y maneja cada cliente en un hilo separado.
  */
 int main() {
-    int server_sock, *client_sock;
-    struct sockaddr_in server_addr, client_addr;
-    socklen_t addr_size = sizeof(client_addr);
 
-    // Creamos el socket del servidor
-    server_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_sock < 0) {
-        perror("Error creando socket");
+    // Crea el socket del servidor
+    int server_fd;
+    struct sockaddr_in address;
+    socklen_t addr_size = sizeof(address);
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        perror("[-] Creacion del socket fallida");
         return 1;
     }
 
-    // Configuramos la direccion del servidor
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(PORT);
+    // Configura la direccion del servidor
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
 
-    // Asociamos el socket a la direccion y puerto, si el bind falla, cerramos el socket
-    if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
-        perror("Error en bind");
-        close(server_sock);
-        return 1;
-    }
+    // Asocia el socket a la direccion y puerto, si el bind falla, cierra el socket
+    bind(server_fd, (struct sockaddr *)&address, sizeof(address));
+    listen(server_fd, 5);
 
-    // Escuchamos conexiones entrantes, si el listen falla, cerramos el socket
-    if (listen(server_sock, 5) < 0) {
-        perror("Error en listen");
-        close(server_sock);
-        return 1;
-    }
+    printf("[+] Servidor escuchando en el puerto %d\n", PORT);
 
-    printf("Servidor esperando conexiones...\n");
-
-    // Bucle principal del servidor, acepta conexiones entrantes y crea un hilo para cada cliente
-    while (1) {
-
-        // Reservamos memoria para el socket del cliente
-        client_sock = malloc(sizeof(int));
-        if (!client_sock) {
-            perror("Error reservando memoria para client_sock");
+    while (1)                                                                           // Espera conexiones entrantes
+    {
+        int new_socket = accept(server_fd, (struct sockaddr *)&address, &addr_size);    // Acepta una nueva conexion entrante
+        if (new_socket < 0) {
+            perror("[-] Accept fallido");
             continue;
         }
 
-        // Aceptamos una conexion entrante, si el accept falla, liberamos la memoria y continuamos
-        *client_sock = accept(server_sock, (struct sockaddr *)&client_addr, &addr_size);
-        if (*client_sock < 0) {
-            perror("Error en accept");
-            free(client_sock);
-            continue;
-        }
+        int *new_socket_fd = malloc(sizeof(int));                                       // Reserva memoria para el socket del cliente                   
+        *new_socket_fd = new_socket;
 
-        // Creamos un hilo para manejar al cliente
-        pthread_t tid;
-        pthread_create(&tid, NULL, handle_client, client_sock);
-        pthread_detach(tid);
+        pthread_t thread_id;                                                            // Crea un nuevo hilo para manejar la conexion del cliente
+        pthread_create(&thread_id, NULL, manage_flow, (void *)new_socket_fd);           // Pasa el socket del cliente al hilo
+        pthread_detach(thread_id);                                                      // Desvincula el hilo para que se limpie automaticamente al finalizar
     }
 
-    // Cerramos el socket del servidor al finalizar
-    close(server_sock);
+    // Cierra el socket del servidor al finalizar
+    close(server_fd);
     return 0;
 }
+
+// Nota: El codigo para el main toma como referencia los siguientes enlaces:
+//       https://www.youtube.com/watch?v=io2G2yW1Qk8
+//       https://idiotdeveloper.com/tcp-client-server-programming-c-guide/
