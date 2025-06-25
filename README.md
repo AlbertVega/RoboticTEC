@@ -3,8 +3,8 @@
 ### Grupo:
 
 - Albert Vega Camacho  
-- Kevin Chinchilla
-- Byron Mata
+- Kevin Chinchilla Rodriguez
+- Byron Mata Fuentes
 
 ## > Introducción 
 
