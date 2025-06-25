@@ -26,3 +26,13 @@ Para ejecutar: 5 terminales todos en terminales distintas
 
 
 ////////////////////////////////////////////////////////////////////////
+
+Comandos para Driver y tal
+
+lsmod | grep ArduinoDriver
+lsmod | grep ch341
+sudo nano blacklist.conf
+cd /etc/modprobe.d
+dmesg | tail -30
+
+make clean && make

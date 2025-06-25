@@ -4,6 +4,7 @@
 #include <sys/stat.h>
 
 #include "utils.h"
+#include "../library/library.h"
 
 /**
  * * Funcion para desencriptar datos usando XOR.
@@ -160,5 +161,11 @@ void most_freq_word(const int *ports, int nodes) {
     }
 
     printf("La palabra con más ocurrencias es '%s' con %d apariciones.\n", words[highest_freq].word, words[highest_freq].count);
+    
+    // Enviar la palabra al arduino
+    const char *device = "/dev/ArduinoDriver3"; // Cambia esto al dispositivo correcto
+    const char *data = words[highest_freq].word; // La palabra con más ocurrencias
 
+    send_word_as_binary(device, data);
+    //send_word_as_binary(words[highest_freq].word, );
 }
