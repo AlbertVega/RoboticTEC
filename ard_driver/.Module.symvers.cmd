@@ -1,0 +1,1 @@
+cmd_/home/esteban/Documents/driver_op/Proyecto2Operativos-driver/Module.symvers := sed 's/\.ko$$/\.o/' /home/esteban/Documents/driver_op/Proyecto2Operativos-driver/modules.order | scripts/mod/modpost -m -a  -o /home/esteban/Documents/driver_op/Proyecto2Operativos-driver/Module.symvers -e -i Module.symvers   -T -

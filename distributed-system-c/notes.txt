@@ -1,0 +1,38 @@
+- Para compilar cliente desde la ruta de cliente:
+
+gcc client.c -o client
+
+
+- Para compilar el servidor desde la ruta del servidor:
+
+gcc server.c node_manager.c ServerUtils/utils.c -o server -lpthread
+
+
+- Para compilar los nodos desde la ruta del servidor:
+
+gcc node.c word_counter.c -o node
+
+/////////////////////////////////////////////////////////////////////////
+
+Para ejecutar: 5 terminales todos en terminales distintas
+
+1)  ./node 9001
+    ./node 9002
+    ./node 9003
+
+2) ./server
+
+3) ./client
+
+
+////////////////////////////////////////////////////////////////////////
+
+Comandos para Driver y tal
+
+lsmod | grep ArduinoDriver
+lsmod | grep ch341
+sudo nano blacklist.conf
+cd /etc/modprobe.d
+dmesg | tail -30
+
+make clean && make
