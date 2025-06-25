@@ -5,7 +5,10 @@
 
 #include "word_counter.h"
 
-// Funcion para convertir una palabra a minúsculas
+
+/**
+ * * Funcion para convertir una cadena a minúsculas.
+ */
 void toLowerCase(char *str)
 {
     for (int i = 0; str[i]; i++)
@@ -14,55 +17,62 @@ void toLowerCase(char *str)
     }
 }
 
-// Funcion para verificar si un carácter es válido para una palabra
+
+/**
+ * * Funcion para verificar si un carácter es parte de una palabra.
+ * 
+ * * Considera letras, dígitos, caracteres extendidos, apóstrofe y guion.
+ */
 int isWordChar(char c)
 {
     // Letras, dígitos, caracteres extendidos, apóstrofe y guion
     return isalnum((unsigned char)c) || (unsigned char)c >= 128;
 }
 
-// Funcion para agregar una palabra a la lista o incrementar su conteo
+
+/**
+ * * Funcion para agregar una palabra al contador de palabras.
+ */
 void addWord(WordCount *words, int *wordCount, const char *word)
 {
-    // Buscar si la palabra ya existe
-    for (int i = 0; i < *wordCount; i++)
+    
+    for (int i = 0; i < *wordCount; i++)                            // Para cada palabra ya registrada
     {
-        if (strcmp(words[i].word, word) == 0)
+        if (strcmp(words[i].word, word) == 0)                       // Si la palabra ya existe
         {
-            words[i].count++;
+            words[i].count++;                                       // Incrementar el contador 
             return;
         }
     }
 
-    // Si no existe y hay espacio, agregarla
-    if (*wordCount < MAX_WORDS)
+    
+    if (*wordCount < MAX_WORDS)                                     // Si hay espacio para una nueva palabra
     {
-        strncpy(words[*wordCount].word, word, MAX_WORD_LENGTH - 1);
-        words[*wordCount].word[MAX_WORD_LENGTH - 1] = '\0'; // Asegurar terminación nula
-        words[*wordCount].count = 1;
-        (*wordCount)++;
+        strncpy(words[*wordCount].word, word, MAX_WORD_LENGTH - 1); // Copiar la palabra
+        words[*wordCount].word[MAX_WORD_LENGTH - 1] = '\0';         // Asegurar terminación nula
+        words[*wordCount].count = 1;                                // Inicializar el contador a 1
+        (*wordCount)++;                                             // Incrementar el contador de palabras 
     }
-    else
+    else                                                        
     {
         printf("[!] Se alcanzó el límite máximo de palabras distintas (%d)\n", MAX_WORDS);
     }
 }
 
-// Funcion principal
+
+/**
+ * * Funcion para contar palabras en un archivo y generar un archivo de salida.
+ * 
+ * * Recibe el nombre del archivo de entrada y el puerto actual.
+ */
 void words_counter(const char *filename, int current_port)
 {
-    // Abre el archivo en modo lectura usando utilidad
-    FILE *input_file = fopen(filename, "r");
-    if (!input_file)
-    {
-        perror("[-] No se pudo abrir el archivo para contar palabras");
-        return;
-    }
-    WordCount words[MAX_WORDS];
-    int wordCount = 0;
+    
+    FILE *input_file = fopen(filename, "r");                        // Abrir el archivo de entrada
 
-    // Inicializar la estructura de palabras
-    memset(words, 0, sizeof(words));
+    WordCount words[MAX_WORDS];                                     // Estructura para almacenar palabras y sus conteos
+    int wordCount = 0;
+    memset(words, 0, sizeof(words));                                                    
 
 
     // Procesar el archivo palabra por palabra
@@ -70,51 +80,39 @@ void words_counter(const char *filename, int current_port)
     int charIndex = 0;
     char c;
 
-    while ((c = fgetc(input_file)))
+    while ((c = fgetc(input_file)) != EOF)                          // Mientras haya caracteres en el archivo
     {
-        if (isWordChar(c))
+        // Caso cuando el caracter es valido en si
+        if (isWordChar(c))                                          // Si el carácter es parte de una palabra y es válido               
         {
-            // Agregar carácter a la palabra actual
-            if (charIndex < MAX_WORD_LENGTH - 1)
+            if (charIndex < MAX_WORD_LENGTH - 1)                    // Si hay espacio en la palabra actual
             {
-                currentWord[charIndex++] = tolower(c);
+                currentWord[charIndex++] = tolower(c);              // Convertir a minúsculas y agregar el carácter    
             }
         }
-        else if (charIndex > 0)
+
+        // Caso cuando el caracter no es uno valido
+        else if (charIndex > 0)                                     // Si se encuentra un carácter no válido y hay una palabra en construcción                  
         {
-            // Terminar la palabra actual y procesarla
-            currentWord[charIndex] = '\0';
-            addWord(words, &wordCount, currentWord);
-            charIndex = 0;
+            currentWord[charIndex] = '\0';                          // Terminar la palabra actual    
+            addWord(words, &wordCount, currentWord);                // Agregar la palabra al contador de palabras
+            charIndex = 0;                                          // Reiniciar el índice de caracteres para la siguiente palabra
         }
 
-        // Si se encuentra un salto de línea, procesar la palabra actual
-        if (c == EOF)
-        {
-            break;
-        }
     }
 
-    // Cerrar archivo de entrada
-    fclose(input_file);
+    fclose(input_file);     
 
-    // Generar el nombre de salida correspondiente
     char output_filename[256];
     snprintf(output_filename, sizeof(output_filename), "NodeFiles/words_lists/list_%d.txt", current_port);
 
     FILE *output_file = fopen(output_filename, "w");
-    if (!output_file) {
-        perror("[-] No se pudo crear el archivo de salida de palabras");
-        fclose(input_file);
-        return;
-    }
 
-    for (int i = 0; i < wordCount; i++)
+    for (int i = 0; i < wordCount; i++)                                     // Escribir las palabras y sus conteos en el archivo de salida  
     {
-        fprintf(output_file, "%s: %d\n", words[i].word, words[i].count);
+        fprintf(output_file, "%s: %d\n", words[i].word, words[i].count);    // Escribir la palabra y su conteo en el archivo de salida en el formato "palabra: conteo"
     }
 
-    // Cerrar archivo de salida
     fclose(output_file);
 
     printf("[+] Proceso completado.");
